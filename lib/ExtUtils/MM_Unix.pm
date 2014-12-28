@@ -879,20 +879,29 @@ Defines targets for bootstrap files.
 =cut
 
 sub dynamic_bs {
-    my($self, %attribs) = @_;
-    return "\nBOOTSTRAP =\n" unless $self->has_link_code();
+    my ($self) = @_;
+    $self->vrr2text(&dynamic_bsX); # leaves @_ intact so X method gets
+}
+
+sub dynamic_bsX {
+    my ($self, %attribs) = @_;
+    return(undef, $self->var2vrr('BOOTSTRAP')) unless $self->has_link_code();
     my @exts;
     if ($self->{XSMULTI}) {
 	@exts = $self->_xs_list_basenames;
     } else {
 	@exts = '$(BASEEXT)';
     }
-    return join "\n",
-        "BOOTSTRAP = @{[map { qq{$_.bs} } @exts]}\n",
-        map { $self->_xs_make_bs($_) } @exts;
+    my @m = ($self->var2vrr('BOOTSTRAP', map { qq{$_.bs} } @exts), undef);
+    push @m,
+        \'As Mkbootstrap might not write a file (if none is required)',
+        \'we use touch to prevent make continually trying to remake it.',
+        \'The DynaLoader only reads a non-empty file.';
+    push @m, map { $self->_xs_make_bsX($_) } @exts;
+    @m;
 }
 
-sub _xs_make_bs {
+sub _xs_make_bsX {
     my ($self, $basename) = @_;
     my ($v, $d, $f) = File::Spec->splitpath($basename);
     my @d = File::Spec->splitdir($d);
@@ -901,23 +910,30 @@ sub _xs_make_bs {
     $instdir = '$(INST_ARCHAUTODIR)' if $basename eq '$(BASEEXT)';
     my $instfile = File::Spec->catfile($instdir, "$f.bs");
     my $exists = "$instdir\$(DFSEP).exists"; # match blibdirs_target
-    #                                 1          2          3
-    return _sprintf562 <<'MAKE_FRAG', $basename, $instfile, $exists;
-# As Mkbootstrap might not write a file (if none is required)
-# we use touch to prevent make continually trying to remake it.
-# The DynaLoader only reads a non-empty file.
-%1$s.bs : $(FIRST_MAKEFILE) $(BOOTDEP)
-	$(NOECHO) $(ECHO) "Running Mkbootstrap for %1$s ($(BSLOADLIBS))"
-	$(NOECHO) $(PERLRUN) \
-		"-MExtUtils::Mkbootstrap" \
-		-e "Mkbootstrap('%1$s','$(BSLOADLIBS)');"
-	$(NOECHO) $(TOUCH) "%1$s.bs"
-	$(CHMOD) $(PERM_RW) "%1$s.bs"
-
-%2$s : %1$s.bs %3$s
-	$(NOECHO) $(RM_RF) %2$s
-	- $(CP_NONEMPTY) %1$s.bs %2$s $(PERM_RW)
-MAKE_FRAG
+    my @m = $self->rule2vrr(
+        "$basename.bs",
+        0,
+        [ qw{$(FIRST_MAKEFILE) $(BOOTDEP)} ],
+        [
+            qq{\$(NOECHO) \$(ECHO) "Running Mkbootstrap for $basename (\$(BSLOADLIBS))"},
+            q{$(NOECHO) $(PERLRUN) "-MExtUtils::Mkbootstrap" \\},
+            qq{    -e "Mkbootstrap('$basename','\$(BSLOADLIBS)');"},
+            qq{\$(NOECHO) \$(TOUCH) "$basename.bs"},
+            qq{\$(CHMOD) \$(PERM_RW) "$basename.bs"},
+        ],
+    );
+    push @m, undef;
+    push @m, $self->rule2vrr(
+        $instfile,
+        0,
+        [ "$basename.bs", $exists, ],
+        [
+            qq{\$(NOECHO) \$(RM_RF) $instfile},
+            qq{- \$(CP_NONEMPTY) "$basename.bs" $instfile \$(PERM_RW)},
+        ],
+    );
+    push @m, undef;
+    @m;
 }
 
 =item dynamic_lib (o)
