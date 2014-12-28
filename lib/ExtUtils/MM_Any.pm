@@ -12,7 +12,7 @@ BEGIN { our @ISA = qw(File::Spec); }
 use ExtUtils::MakeMaker qw($Verbose write_file_via_tmp neatvalue);
 
 use ExtUtils::MakeMaker::Config;
-
+use ExtUtils::MakeMaker::VRR;
 
 # So we don't have to keep calling the methods over and over again,
 # we have these globals to cache the values.  Faster and shrtr.
