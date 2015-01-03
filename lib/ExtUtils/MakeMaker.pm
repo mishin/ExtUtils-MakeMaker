@@ -790,28 +790,35 @@ END
         $self->eval_in_subdirs if @{$self->{DIR}};
     }
 
-    my %section2text;
+    my %section2vrrs;
     foreach my $section ( @MM_Sections ){
         # Support for new foo_target() methods.
         my $method = $section;
         $method .= '_target' unless $self->can($method);
         print "Processing Makefile '$section' section\n" if ($Verbose >= 2);
         my($skipit) = $self->skipcheck($section);
-        my @text = "\n";
+        my @vrrs = undef;
         if ($skipit){
-            push @text, "# --- MakeMaker $section section $skipit.";
+            push @vrrs, \"--- MakeMaker $section section $skipit.";
         } else {
-            push @text, "# --- MakeMaker $section section:";
+            push @vrrs, \"--- MakeMaker $section section:";
             my %a = %{$self->{$section} || {}};
-            push @text, '# ' . join ", ", %a if $Verbose && %a;
-            push @text, $self->maketext_filter($self->$method(%a));
+            push @vrrs, \join ", ", %a if $Verbose && %a;
+            push @vrrs, $self->text2vrrs(
+                $self->maketext_filter($self->$method(%a))
+            );
         }
-        push @text, "\n";
-        $section2text{$section} = \@text;
+        push @vrrs, undef;
+        $section2vrrs{$section} = \@vrrs;
     }
     # notional plugins work here
     foreach my $section ( @MM_Sections ){
-        push @{$self->{RESULT}}, @{ $section2text{$section} };
+        push @{$self->{RESULT}}, map {
+            my $v = $_;
+            my $t = $self->vrr2text($v);
+            chomp $t;
+            $t;
+        } @{ $section2vrrs{$section} };
     }
     push @{$self->{RESULT}}, "\n# End.";
 
