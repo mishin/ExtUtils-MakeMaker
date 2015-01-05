@@ -367,6 +367,7 @@ sub list_dynamic {
 
 sub list_cpp {
   (
+    [ 'cppbasic', '', '' ],
   );
 }
 
