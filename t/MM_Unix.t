@@ -12,7 +12,7 @@ BEGIN {
         plan skip_all => 'Non-Unix platform';
     }
     else {
-        plan tests => 109;
+        plan tests => 108;
     }
 }
 
@@ -113,7 +113,6 @@ foreach ( qw /
   top_targets
   writedoc
   xs_c
-  xs_cpp
   xs_o
   / )
   {
